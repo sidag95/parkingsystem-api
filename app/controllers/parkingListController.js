@@ -10,11 +10,10 @@ res.json(content);
 module.exports.getPakingLotsList = function (req, res) {
   ParkingLot.find({}, function(err, list) {
     if(err) {
-      sendJsonResponse(res, 400, {'status' : err});
+      return sendJsonResponse(res, 400, {'status' : err});
 
     }
     sendJsonResponse(res, 200, list);
-
   })
 }
 
