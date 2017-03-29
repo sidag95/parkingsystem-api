@@ -51,8 +51,19 @@ module.exports.addPakingLot = function (req, res) {
 module.exports.updatePakingLot = function (req, res) {
   ParkingLot.findOne({_id: req.params.lotId})
   .then(function(pL) {
-    const updateSpaces = R.mergeAll(req.body.spaces, pL.toJSON());
-    ParkingLot.findOneAndUpdate({_id: req.params.lotId}, updateSpaces)
+    const pLJSON = pL.toJSON();
+    const updatedSpaces = pLJSON.spaces.map(function(pLS) {
+      const _id = pLS._id;
+      const matchingSpace = R.find(R.propEq('_id', _id))(req.body.spaces);
+      if(matchingSpace) {
+        return R.merge(pLS, matchingSpace);
+      }
+      else {
+        return pLS;
+      }
+    })
+    const updatedPL = R.merge(pLJSON, {spaces: updatedSpaces});
+    ParkingLot.findOneAndUpdate({_id: req.params.lotId}, updatedPL)
     .then(function(doc) {
       sendJsonResponse(res, 203, doc); 
     })
@@ -61,6 +72,6 @@ module.exports.updatePakingLot = function (req, res) {
     })
   })
   .catch(function(err) {
-    sendJsonResponse(res, 404, err)
+    sendJsonResponse(res, 503, {'status' : err})
   })
 }
