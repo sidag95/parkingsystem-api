@@ -49,9 +49,16 @@ module.exports.addPakingLot = function (req, res) {
 
 
 module.exports.updatePakingLot = function (req, res) {
-  ParkingLot.findOneAndUpdate({_id: req.params.lotId}, req.body)
+  ParkingLot.findOne({_id: req.params.lotId})
   .then(function(pL) {
-    sendJsonResponse(res, 200, pL);
+    const updateSpaces = R.mergeAll(req.body.spaces, pL.toJSON());
+    ParkingLot.findOneAndUpdate({_id: req.params.lotId}, updateSpaces)
+    .then(function(doc) {
+      sendJsonResponse(res, 203, doc); 
+    })
+    .catch(function(err) {
+      sendJsonResponse(res, 500, err)
+    })
   })
   .catch(function(err) {
     sendJsonResponse(res, 404, err)
