@@ -2,19 +2,54 @@ const mongoose = require('mongoose')
 const ParkingLot = mongoose.model('ParkingLot')
 const R = require('ramda')
 
+const sseHelpers = require('../utils/sseHelper')
+const setSSEHeaders = sseHelpers.setSSEHeader
+const constructSSE = sseHelpers.constructSSE
+
 const sendJsonResponse = function(res, status, content) {
 res.status(status);
 res.json(content);
 };
 
-module.exports.getPakingLotsList = function (req, res) {
-  ParkingLot.find({}, function(err, list) {
-    if(err) {
-      return sendJsonResponse(res, 400, {'status' : err});
+function pollDBToConstructSSE (res, data) {
+  return ParkingLot
+    .find({})
+    .then(function(lotData) {
+      console.log(JSON.stringify(lotData) === JSON.stringify(data))
+      if(JSON.stringify(lotData) !== JSON.stringify(data)) {
+        constructSSE(res, 200, lotData)
+      }
+      return lotData
+    })
+    .catch(function(err) {
+      console.log(err)
+      constructSSE(res, 400, err)
+      return data
+    })
+}
 
+module.exports.getPakingLotsList = function (req, res) {
+  if (req.headers.accept && req.headers.accept === 'text/event-stream') {
+    var data=[];
+    setSSEHeaders(res)
+      const pollDB = function () {
+      pollDBToConstructSSE(res, data)
+        .then(function (resData) {
+          data=resData
+        })
+      setTimeout(pollDB, 2000)
     }
-    sendJsonResponse(res, 200, list);
-  })
+    pollDB()
+  } else {
+    ParkingLot
+      .find({})
+      .then(function(lot) {
+        sendJsonResponse(res, 200, lot)
+      })
+      .catch(function(err) {
+        sendJsonResponse(res, 400, err)
+      })
+  }
 }
 
 module.exports.getPakingLot = function(req, res) {
