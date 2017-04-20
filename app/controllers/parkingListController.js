@@ -2,14 +2,11 @@ const mongoose = require('mongoose')
 const ParkingLot = mongoose.model('ParkingLot')
 const R = require('ramda')
 
+const sendJsonResponse = require('../utils/sendJsonResponse')
+const composeParkingLot = require('../utils/composeParkingLot')
 const sseHelpers = require('../utils/sseHelper')
 const setSSEHeaders = sseHelpers.setSSEHeader
 const constructSSE = sseHelpers.constructSSE
-
-const sendJsonResponse = function(res, status, content) {
-res.status(status);
-res.json(content);
-};
 
 function pollDBToConstructSSE (res, data) {
   return ParkingLot
@@ -109,4 +106,62 @@ module.exports.updatePakingLot = function (req, res) {
   .catch(function(err) {
     sendJsonResponse(res, 503, {'status' : err})
   })
+}
+
+module.exports.bookParkingSpace = function (req, res) {
+  const lotId = req.body.lotId;
+  const spaceId = req.body.spaceId;
+  const userId = req.body.userId;
+
+  ParkingLot
+    .findOne({_id: lotId})
+    .then(function (doc) {
+      const parkingLot = doc.toJSON();
+      const parkingSpace = parkingLot.spaces.filter(function (f) {
+        return f._id === spaceId;
+      })
+      if(parkingSpace.status === 'PARKING_FREE') {
+        const bookingRequests = R.append(parkingSpace.bookingRequests, userId)
+        const updatedParkingSpace = R.merge(parkingSpace, bookingRequests)
+        const updatedParkingLot = composeParkingLot(parkingLot, spaceId, updatedParkingSpace)
+        ParkingLot
+          .findOneAndUpdate({_id:lotId}, updatedParkingLot)
+          .then(function() {
+            ParkingLot
+              .findOne({_id: lotId})
+              .then(function(lot){
+                const pLot = lot.toJSON()
+                const pSpace = pLot.spaces.filter(function(f){
+                  return f._id === spaceId
+                })
+                if (pSpace.status === 'PARKING_FREE' && (pSpace.bookingRequests.length > 0)) {
+                  const bookeeId = pSpace.bookingRequests[0]
+                  const bookingReq = []
+                  const booked = {
+                    user: bookeeId,
+                    validTill: 9999999,
+                  }
+                  const updatedPSpace = R.merge(pSpace, booked, bookingReq)
+                  const updatedPLot = composeParkingLot(pLot, spaceId, updatedPSpace)
+                  ParkingLot
+                    .findOneAndUpdate({_id: lotId}, updatedPLot)
+                    .then(function(document) {
+                      sendJsonResponse(res, 200, document)
+                    })
+                    .catch(function(err) {
+                      sendJsonResponse(res, 400, err)
+                    })
+                } else {
+                  sendJsonResponse(res, 400, {message: "Parking Space not free"})
+                }
+              })
+          })
+          .catch(function (error) {
+            sendJsonResponse(res, 400, error)
+          })
+      }
+    })
+    .catch(function (err) {
+      sendJsonResponse(res, 404, err)
+    })
 }
