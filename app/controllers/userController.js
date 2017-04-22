@@ -2,7 +2,7 @@ const mongoose = require('mongoose')
 const User = mongoose.model('User')
 const R = require('ramda')
 
-const sendJsonResponse = require('../utils/sendJsonResponse')
+const sendJsonResponse = require('../utils/sendJsonResponse').sendJsonResponse
 
 const checkExistingUsername = function (req) {
   User
@@ -46,7 +46,7 @@ module.exports.checkUsername = function (req, res) {
   if (checkExistingUsername(req)) {
     sendJsonResponse(res, 400, {message: "Username already taken"})
   } else {
-    sendJsonResponse(res, 200, {message: {"Available"}})
+    sendJsonResponse(res, 200, {message: "Available"})
   }
 }
 

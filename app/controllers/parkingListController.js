@@ -2,8 +2,8 @@ const mongoose = require('mongoose')
 const ParkingLot = mongoose.model('ParkingLot')
 const R = require('ramda')
 
-const sendJsonResponse = require('../utils/sendJsonResponse')
-const composeParkingLot = require('../utils/composeParkingLot')
+const sendJsonResponse = require('../utils/sendJsonResponse').sendJsonResponse
+const composeParkingLot = require('../utils/composeParkingLot').composeParkingLot
 const sseHelpers = require('../utils/sseHelper')
 const setSSEHeaders = sseHelpers.setSSEHeader
 const constructSSE = sseHelpers.constructSSE
@@ -117,13 +117,17 @@ module.exports.bookParkingSpace = function (req, res) {
     .findOne({_id: lotId})
     .then(function (doc) {
       const parkingLot = doc.toJSON();
+      console.log(parkingLot)
       const parkingSpace = parkingLot.spaces.filter(function (f) {
         return f._id === spaceId;
-      })
+      })[0]
+      console.log("Parking Space", parkingSpace)
       if(parkingSpace.status === 'PARKING_FREE') {
-        const bookingRequests = R.append(parkingSpace.bookingRequests, userId)
-        const updatedParkingSpace = R.merge(parkingSpace, bookingRequests)
+        console.log("--------->")
+        const bookingRequests = R.append(userId, parkingSpace.bookingRequests)
+        const updatedParkingSpace = R.merge(parkingSpace, {bookingRequests: bookingRequests})
         const updatedParkingLot = composeParkingLot(parkingLot, spaceId, updatedParkingSpace)
+        console.log(updatedParkingLot)
         ParkingLot
           .findOneAndUpdate({_id:lotId}, updatedParkingLot)
           .then(function() {
@@ -157,6 +161,7 @@ module.exports.bookParkingSpace = function (req, res) {
               })
           })
           .catch(function (err) {
+            console.log("Second find")
             sendJsonResponse(res, 400, err)
           })
       } else {
@@ -164,6 +169,7 @@ module.exports.bookParkingSpace = function (req, res) {
       }
     })
     .catch(function (err) {
+      console.log("First Find")
       sendJsonResponse(res, 404, err)
     })
 }

@@ -23,11 +23,11 @@ const parkingSchema = new mongoose.Schema({
       enum: PARKING_STATUS_ENUM,
     },
     reserved: {
-      user: ObjectId,
+      user: String,
       validTill: Number,
     },
     booked: {
-      user: ObjectId,
+      user: String,
       validTill: Number,
     },
     dimensions: {
@@ -37,7 +37,7 @@ const parkingSchema = new mongoose.Schema({
       height: String,
     },
     bookingRequests: [{
-      userId: ObjectId,
+      userId: String,
     }]
   }],
   location: {
