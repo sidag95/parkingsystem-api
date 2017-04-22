@@ -135,10 +135,10 @@ module.exports.bookParkingSpace = function (req, res) {
                   return f._id === spaceId
                 })
                 if (pSpace.status === 'PARKING_FREE' && (pSpace.bookingRequests.length > 0)) {
-                  const bookeeId = pSpace.bookingRequests[0]
+                  const bookerId = pSpace.bookingRequests[0]
                   const bookingReq = []
                   const booked = {
-                    user: bookeeId,
+                    user: bookerId,
                     validTill: 9999999,
                   }
                   const updatedPSpace = R.merge(pSpace, booked, bookingReq)
@@ -156,9 +156,11 @@ module.exports.bookParkingSpace = function (req, res) {
                 }
               })
           })
-          .catch(function (error) {
-            sendJsonResponse(res, 400, error)
+          .catch(function (err) {
+            sendJsonResponse(res, 400, err)
           })
+      } else {
+        sendJsonResponse(res, 400, {message: "Parking Space not free"})
       }
     })
     .catch(function (err) {

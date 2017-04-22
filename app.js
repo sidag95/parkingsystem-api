@@ -4,8 +4,14 @@ var cors = require('cors');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
-const passport = require('passport')
-const localStrategy = require('passport-local').Strategy
+var jwt = require('jsonwebtoken');
+
+var passport = require("passport");
+var passportJWT = require("passport-jwt");
+
+var ExtractJwt = passportJWT.ExtractJwt;
+var JwtStrategy = passportJWT.Strategy;
+
 require('./app/models/db')
 
 var routes = require('./app/routes/index');
