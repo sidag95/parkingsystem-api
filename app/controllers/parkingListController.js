@@ -4,6 +4,7 @@ const R = require('ramda')
 
 const sendJsonResponse = require('../utils/sendJsonResponse').sendJsonResponse
 const composeParkingLot = require('../utils/composeParkingLot').composeParkingLot
+const mergeMultiple = require('../utils/mergeMultiple').mergeMultiple
 const sseHelpers = require('../utils/sseHelper')
 const setSSEHeaders = sseHelpers.setSSEHeader
 const constructSSE = sseHelpers.constructSSE
@@ -117,17 +118,14 @@ module.exports.bookParkingSpace = function (req, res) {
     .findOne({_id: lotId})
     .then(function (doc) {
       const parkingLot = doc.toJSON();
-      console.log(parkingLot)
       const parkingSpace = parkingLot.spaces.filter(function (f) {
         return f._id === spaceId;
       })[0]
-      console.log("Parking Space", parkingSpace)
       if(parkingSpace.status === 'PARKING_FREE') {
         console.log("--------->")
         const bookingRequests = R.append(userId, parkingSpace.bookingRequests)
         const updatedParkingSpace = R.merge(parkingSpace, {bookingRequests: bookingRequests})
         const updatedParkingLot = composeParkingLot(parkingLot, spaceId, updatedParkingSpace)
-        console.log(updatedParkingLot)
         ParkingLot
           .findOneAndUpdate({_id:lotId}, updatedParkingLot)
           .then(function() {
@@ -137,7 +135,7 @@ module.exports.bookParkingSpace = function (req, res) {
                 const pLot = lot.toJSON()
                 const pSpace = pLot.spaces.filter(function(f){
                   return f._id === spaceId
-                })
+                })[0]
                 if (pSpace.status === 'PARKING_FREE' && (pSpace.bookingRequests.length > 0)) {
                   const bookerId = pSpace.bookingRequests[0]
                   const bookingReq = []
@@ -145,7 +143,11 @@ module.exports.bookParkingSpace = function (req, res) {
                     user: bookerId,
                     validTill: 9999999,
                   }
-                  const updatedPSpace = R.merge(pSpace, booked, bookingReq)
+                  const updatedPSpace = mergeMultiple(pSpace,
+                      {bookingRequests: bookingReq},
+                      {booked: booked},
+                      {status: "PARKING_OCCUPIED"}
+                    )
                   const updatedPLot = composeParkingLot(pLot, spaceId, updatedPSpace)
                   ParkingLot
                     .findOneAndUpdate({_id: lotId}, updatedPLot)
@@ -156,6 +158,7 @@ module.exports.bookParkingSpace = function (req, res) {
                       sendJsonResponse(res, 400, err)
                     })
                 } else {
+                  console.log("Parking Not free after ")
                   sendJsonResponse(res, 400, {message: "Parking Space not free"})
                 }
               })

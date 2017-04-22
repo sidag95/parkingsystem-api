@@ -36,9 +36,7 @@ const parkingSchema = new mongoose.Schema({
       width: String,
       height: String,
     },
-    bookingRequests: [{
-      userId: String,
-    }]
+    bookingRequests: [String],
   }],
   location: {
     type: [Number],
