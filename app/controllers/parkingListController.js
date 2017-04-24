@@ -9,6 +9,11 @@ const sseHelpers = require('../utils/sseHelper')
 const setSSEHeaders = sseHelpers.setSSEHeader
 const constructSSE = sseHelpers.constructSSE
 
+const bookedEmpty = {
+  user: '',
+  validTill: 0,
+}
+
 function pollDBToConstructSSE (res, data) {
   return ParkingLot
     .find({})
@@ -30,7 +35,7 @@ module.exports.getPakingLotsList = function (req, res) {
   if (req.headers.accept && req.headers.accept === 'text/event-stream') {
     var data=[];
     setSSEHeaders(res)
-      const pollDB = function () {
+    const pollDB = function () {
       pollDBToConstructSSE(res, data)
         .then(function (resData) {
           data=resData
@@ -52,61 +57,87 @@ module.exports.getPakingLotsList = function (req, res) {
 
 module.exports.getPakingLot = function(req, res) {
   ParkingLot
-  .findOne({_id: req.params.lotId})
-  .then(function(lot) {
-    sendJsonResponse(res, 200, lot)
-  })
-  .catch(function(err) {
-    sendJsonResponse(res, 400, err)
-  })
+    .findOne({_id: req.params.lotId})
+    .then(function(lot) {
+      sendJsonResponse(res, 200, lot)
+    })
+    .catch(function(err) {
+      sendJsonResponse(res, 400, err)
+    })
 }
 
 module.exports.addPakingLot = function (req, res) {
   ParkingLot
-  .findOne()
-  .sort({_id : -1})
-  .then(function(pL) {
-    const nextId = pL ? parseInt(pL._id)+1 : 1
+    .findOne()
+    .sort({_id : -1})
+    .then(function(pL) {
+      const nextId = pL ? parseInt(pL._id)+1 : 1
 
-  const newParkingLot = new ParkingLot(
-    R.mergeAll([req.body, {_id: nextId}]))
-  newParkingLot
-  .save().then(function(err, list) {
-    sendJsonResponse(res, 201, {'status' : list});
-  })
-  .catch(function(err) {
-    sendJsonResponse(res, 400, {'status' : err});
-  })
-})
+      const newParkingLot = new ParkingLot(
+        R.mergeAll([req.body, {_id: nextId}]))
+      newParkingLot
+        .save().then(function(err, list) {
+        sendJsonResponse(res, 201, {'status' : list});
+      })
+        .catch(function(err) {
+          sendJsonResponse(res, 400, {'status' : err});
+        })
+    })
 }
 
 
 module.exports.updatePakingLot = function (req, res) {
   ParkingLot.findOne({_id: req.params.lotId})
-  .then(function(pL) {
-    const pLJSON = pL.toJSON();
-    const updatedSpaces = pLJSON.spaces.map(function(pLS) {
-      const _id = pLS._id;
-      const matchingSpace = R.find(R.propEq('_id', _id))(req.body.spaces);
-      if(matchingSpace) {
-        return R.merge(pLS, matchingSpace);
-      }
-      else {
-        return pLS;
-      }
-    })
-    const updatedPL = R.merge(pLJSON, {spaces: updatedSpaces});
-    ParkingLot.findOneAndUpdate({_id: req.params.lotId}, updatedPL)
-    .then(function(doc) {
-      sendJsonResponse(res, 203, doc); 
+    .then(function(pL) {
+      const pLJSON = pL.toJSON();
+      const updatedSpaces = pLJSON.spaces.map(function(pLS) {
+        const _id = pLS._id;
+        const matchingSpace = R.find(R.propEq('_id', _id))(req.body.spaces);
+        if(matchingSpace) {
+          if(matchingSpace.status === 'PARKING_FREE') {
+            if(pLS.booked && !R.isEmpty(pLS.booked.user)) {
+              const currentMillis = new Date().getTime()
+              if(currentMillis > pLS.booked.validTill) {
+                return mergeMultiple(pLS, matchingSpace, {booked: bookedEmpty});
+              }
+              else {
+                const booked = pLS.booked
+                return mergeMultiple(pLS, matchingSpace, {booked: booked}, {status: 'PARKING_BOOKED'})
+              }
+            }
+            if (pLS.reserved && !R.isEmpty(pLS.reserved.user)) {
+              const currentMillis = new Date().getTime()
+              if(currentMillis > pLS.reserved.validTill) {
+                return mergeMultiple(pLS, matchingSpace, {booked: bookedEmpty});
+              }
+              else {
+                const reserved = pLS.reserved
+                return mergeMultiple(pLS, matchingSpace, {reserved: reserved}, {status: 'PARKING_RESERVED'})
+              }
+            }
+          }
+          return R.merge(pLS, matchingSpace);
+        }
+        else {
+          return pLS;
+        }
+      })
+      const updatedParkingSpaces = R.isEmpty(updatedSpaces) ? req.body.spaces : updatedSpaces
+      const location = req.body.location ? req.body.location : pLJSON.location
+      const name = req.body.name ? req.body.name : pLJSON.name
+      const updatedPL = mergeMultiple(pLJSON, {spaces: updatedParkingSpaces}, {location: location}, {name: name});
+      ParkingLot.findOneAndUpdate({_id: req.params.lotId}, updatedPL)
+        .then(function(doc) {
+          sendJsonResponse(res, 203, doc);
+        })
+        .catch(function(err) {
+          sendJsonResponse(res, 500, err)
+        })
     })
     .catch(function(err) {
-      sendJsonResponse(res, 500, err)
+      console.log(err)
+      sendJsonResponse(res, 503, err)
     })
-  })
-  .catch(function(err) {
-    sendJsonResponse(res, 503, {'status' : err})
-  })
 }
 
 module.exports.bookParkingSpace = function (req, res) {
@@ -138,15 +169,17 @@ module.exports.bookParkingSpace = function (req, res) {
                 if (pSpace.status === 'PARKING_FREE' && (pSpace.bookingRequests.length > 0)) {
                   const bookerId = pSpace.bookingRequests[0]
                   const bookingReq = []
+                  const validTill = new Date().getTime() + (20*60*1000)
+                  console.log("Time ------------", validTill)
                   const booked = {
                     user: bookerId,
-                    validTill: 9999999,
+                    validTill: validTill,
                   }
                   const updatedPSpace = mergeMultiple(pSpace,
-                      {bookingRequests: bookingReq},
-                      {booked: booked},
-                      {status: "PARKING_OCCUPIED"}
-                    )
+                    {bookingRequests: bookingReq},
+                    {booked: booked},
+                    {status: "PARKING_BOOKED"}
+                  )
                   const updatedPLot = composeParkingLot(pLot, spaceId, updatedPSpace)
                   ParkingLot
                     .findOneAndUpdate({_id: lotId}, updatedPLot)

@@ -5,7 +5,7 @@ var userController = require('../controllers/userController')
 router.get('/', userController.getUsers);
 router.get('/:userId', userController.getUser);
 
-router.post('/', userController.signUpUser);
+router.post('/signup', userController.signUpUser);
 router.post('/login', userController.loginUser);
 router.post('/checkUsername', userController.checkUsername)
 

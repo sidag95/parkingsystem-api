@@ -4,15 +4,9 @@ var cors = require('cors');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
-var jwt = require('jsonwebtoken');
-
-var passport = require("passport");
-var passportJWT = require("passport-jwt");
-
-var ExtractJwt = passportJWT.ExtractJwt;
-var JwtStrategy = passportJWT.Strategy;
-
-require('./app/models/db')
+const passport = require('passport');
+require('./app/models/db');
+require('./app/config/passport');
 
 var routes = require('./app/routes/index');
 var users = require('./app/routes/users');
@@ -24,6 +18,7 @@ app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.use(passport.initialize());
 
 app.use('/api/parking', routes);
 app.use('/api/users', users);

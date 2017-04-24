@@ -33,8 +33,6 @@ const parkingSchema = new mongoose.Schema({
     dimensions: {
       xCord: String,
       yCord: String,
-      width: String,
-      height: String,
     },
     bookingRequests: [String],
   }],
