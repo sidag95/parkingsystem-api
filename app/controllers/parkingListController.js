@@ -115,14 +115,13 @@ module.exports.bookParkingSpace = function (req, res) {
   const userId = req.body.userId;
 
   ParkingLot
-    .findOne({_id: lotId})
+    .findOne({_id: '1'})
     .then(function (doc) {
       const parkingLot = doc.toJSON();
       const parkingSpace = parkingLot.spaces.filter(function (f) {
         return f._id === spaceId;
       })[0]
       if(parkingSpace.status === 'PARKING_FREE') {
-        console.log("--------->")
         const bookingRequests = R.append(userId, parkingSpace.bookingRequests)
         const updatedParkingSpace = R.merge(parkingSpace, {bookingRequests: bookingRequests})
         const updatedParkingLot = composeParkingLot(parkingLot, spaceId, updatedParkingSpace)
@@ -158,13 +157,11 @@ module.exports.bookParkingSpace = function (req, res) {
                       sendJsonResponse(res, 400, err)
                     })
                 } else {
-                  console.log("Parking Not free after ")
                   sendJsonResponse(res, 400, {message: "Parking Space not free"})
                 }
               })
           })
           .catch(function (err) {
-            console.log("Second find")
             sendJsonResponse(res, 400, err)
           })
       } else {
@@ -172,7 +169,6 @@ module.exports.bookParkingSpace = function (req, res) {
       }
     })
     .catch(function (err) {
-      console.log("First Find")
-      sendJsonResponse(res, 404, err)
+      sendJsonResponse(res, 400, err)
     })
 }
