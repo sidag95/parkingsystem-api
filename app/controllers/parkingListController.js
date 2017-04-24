@@ -115,7 +115,7 @@ module.exports.bookParkingSpace = function (req, res) {
   const userId = req.body.userId;
 
   ParkingLot
-    .findOne({_id: '1'})
+    .findOne({_id: lotId})
     .then(function (doc) {
       const parkingLot = doc.toJSON();
       const parkingSpace = parkingLot.spaces.filter(function (f) {
