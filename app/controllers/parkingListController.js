@@ -18,7 +18,6 @@ function pollDBToConstructSSE (res, data) {
   return ParkingLot
     .find({})
     .then(function(lotData) {
-      console.log(JSON.stringify(lotData) === JSON.stringify(data))
       if(JSON.stringify(lotData) !== JSON.stringify(data)) {
         constructSSE(res, 200, lotData)
       }
