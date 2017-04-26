@@ -92,10 +92,10 @@ module.exports.updatePakingLot = function (req, res) {
       const updatedSpaces = pLJSON.spaces.map(function(pLS) {
         const _id = pLS._id;
         const matchingSpace = R.find(R.propEq('_id', _id))(req.body.spaces);
+        const currentMillis = new Date().getTime()        
         if(matchingSpace) {
           if(matchingSpace.status === 'PARKING_FREE') {
             if(pLS.booked && !R.isEmpty(pLS.booked.user)) {
-              const currentMillis = new Date().getTime()
               if(currentMillis > pLS.booked.validTill) {
                 return mergeMultiple(pLS, matchingSpace, {booked: bookedEmpty});
               }
@@ -105,7 +105,6 @@ module.exports.updatePakingLot = function (req, res) {
               }
             }
             if (pLS.reserved && !R.isEmpty(pLS.reserved.user)) {
-              const currentMillis = new Date().getTime()
               if(currentMillis > pLS.reserved.validTill) {
                 return mergeMultiple(pLS, matchingSpace, {booked: bookedEmpty});
               }
